@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+plotlogfile.py
+
+Plots the RIO log file
+"""
+# For pandas
+#import pandas as pd
+#import numpy as np
+# Matplotlib
+import matplotlib.pyplot as plt
+from matplotlib import style
+import csv
+
+style.use('ggplot')
+style.use('dark_background')
+
+# need a file dialog
+import tkinter as tk
+from tkinter import filedialog
+
+# for time stamping files
+from datetime import datetime
+
+# For remote connection to RIO
+from subprocess import call
+
+import sys
+import getopt
+
+# Globals
+load_file = False
+
+def usage():
+   print("Don't be a dummy, dummy!")
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], 'lf:h', ['load', 'file=', 'help'])
+except getopt.GetoptError:
+   usage()
+   sys.exit(2)
+
+for opt, arg in opts:
+    if opt in ('-h', '--help'):
+        usage()
+        sys.exit(2)
+    elif opt in ('-l', '--load'):
+        load_file = True
+    elif opt in ('-f', '--file'):
+        file = arg
+    else:
+        load_file = False # User wants to connect to RIO
+
+
+# A file was specified on the command line
+if load_file:
+   root = tk.Tk()
+   root.withdraw()
+   dest_file_path = filedialog.askopenfilename()
+# Getting the Logging.txt file from the RIO instead
+else: 
+   file = "Logging.txt"
+   dest_path = "/home/dcohen/tmp/"
+   #dest_path = "/home/dcohen/Dropbox/Public/frc/programming_2022/data/"
+   now = datetime.now()
+   timestamp = now.strftime("_%Y%m%d_%H%M%S")
+   dest_file_path = dest_path + file[:7] + timestamp + file[-4:]
+   # Get the Log file
+   try:
+      cmd = "scp lvuser@10.3.84.2:" + file + " " +  dest_file_path
+      call(cmd.split(" "))
+   except:
+      print("Unable to connet to RIO")
+      sys.exit(2)
+
+# Set up lists
+back_left = []
+back_right = []
+front_left = []
+front_right = []
+xaxis = []    # change this to read timestamp
+loop = 0
+
+#fileTypeKnown = False
+
+with open(dest_file_path,'r') as csvfile:
+   data = csv.reader(csvfile, delimiter=' ')
+   for row in data:
+
+      if 'BL:' in row:
+         BL = row[-1]
+         back_left.append(float(BL))
+         xaxis.append(loop)
+         loop += 1
+              
+      if 'BR:' in row:
+         BR = row[-1]
+         back_right.append(float(BR))
+
+      if 'FL:' in row:
+         FL = row[-1]
+         front_left.append(float(FL)) 
+    
+      if 'FR:' in row:
+         FR = row[-1]
+         front_right.append(float(FR))
+
+
+# Set up figure object
+plt.tight_layout()
+plt.title("Motor Speeds")
+plt.plot(xaxis, back_left, label='BL')
+plt.plot(back_right, label='BR')
+plt.plot(front_right, label='FR')
+plt.plot(front_left, label='FL')
+plt.legend()
+plt.show()
